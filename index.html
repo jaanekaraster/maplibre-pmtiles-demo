@@ -109,7 +109,7 @@
     // STEP 3: When the basemap finishes loading, add your data.
     // Replace HYDRANT_DATA_URL with your own .pmtiles URL.
     // =============================================================
-    const HYDRANT_DATA_URL = "https://jaanekaraster.github.io/maplibre-starter-template/hydrant_density.pmtiles";
+    const HYDRANT_DATA_URL = "neighborhood_density.pmtiles";
 
     map.on("load", () => {
       // Add the PMTiles source. The "pmtiles://" prefix tells
@@ -133,7 +133,7 @@
           // Same breaks as the legend above.
           "fill-color": [
             "step",
-            ["get", "density_per_km2"],
+            ["get", "hydrants_per_km2"],
             "#fde725",
             50,  "#90d743",
             150, "#35b779",
@@ -175,14 +175,14 @@
         const html = `
           <div style="font-family: inherit; min-width: 200px;">
             <div style="font-weight: 600; margin-bottom: 4px;">
-              ${p.neighborhood || "Unknown"}
+              ${p.ntaname || "Unknown"}
             </div>
             <div style="font-size: 12px; color: #555;">
-              ${p.borough || ""}
+              ${p.boroname || ""}
             </div>
             <hr style="border: none; border-top: 1px solid #eee; margin: 8px 0;" />
             <div><strong>${p.hydrant_count}</strong> hydrants</div>
-            <div><strong>${Number(p.density_per_km2).toFixed(1)}</strong> per km²</div>
+            <div><strong>${Number(p.hydrants_per_km2).toFixed(1)}</strong> per km²</div>
             <div style="font-size: 11px; color: #888; margin-top: 4px;">
               area: ${Number(p.area_km2).toFixed(2)} km²
             </div>
