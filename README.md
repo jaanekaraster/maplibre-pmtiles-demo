@@ -1,16 +1,69 @@
-# MapLibre + PMTiles Starter
+## NYC Hydrant Density Map
+
+An interactive map visualizing hydrant density across New York City neighborhoods, built with MapLibre GL JS and PMTiles.
+
+The project demonstrates a lightweight, browser-friendly workflow for converting geospatial data into vector tiles and building multiple visualizations from the same dataset.
 
 
-# Data Sources
+### Project Goal
 
-1. NYC Borough Boundaries: https://data.cityofnewyork.us/City-Government/Borough-Boundaries/gthc-hcne/data_preview, downloaded as GeoJSON and converted to PMTiles
+This project explores how a relatively simple geospatial dataset can be transformed into an efficient, interactive visualization using an entirely static web-mapping workflow.
+
+### Tools
+
+- MapLibre GL JS: Interactive web mapping
+- PMTiles: Single-file vector tile storage
+- Tippecanoe: GeoJSON → vector tile conversion
+- GDAL/OGR: geometry transformation
+- NYC Open Data: borough boundary data
+
+### What the Map Shows
+
+- NYC borough boundaries for geographic context
+- Hydrant density by neighborhood, measured as hydrants per km²
+- A polygon visualization showing neighborhood-level density.
+- A circle visualization where each neighborhood is represented by a circle sized by hydrant density
+- Neighborhood boundaries are displayed as contextual outlines when using the circle visualization
+
+### Data Sources
+
+**NYC Borough Boundaries**
+Source: NYC Open Data: Borough Boundaries
+
+The borough boundaries were downloaded as GeoJSON and converted to PMTiles using Tippecanoe:
+
 ```
-tippecanoe -o neighborhoods.pmtiles --drop-densest-as-needed --coalesce-densest-as-needed -z 12 -Z 6 -l neighborhoods --force Borough_Boundaries_20260925.geojson 
+tippecanoe \
+  -o neighborhoods.pmtiles \
+  --drop-densest-as-needed \
+  --coalesce-densest-as-needed \
+  -z 12 \
+  -Z 6 \
+  -l neighborhoods \
+  --force \
+  Borough_Boundaries_20260925.geojson
 ```
 
-2. Neighborhood Density (Hydrants per km2): From previous exercise, copied to this repo as GeoJSON and converted to PMTiles
+**Neighborhood Hydrant Density**
 
-3. Neighborhood Density (Hydrants per km2) (Circle Visualization): Convert #2 to points which are centroids of each neighborhood polygon.
+The neighborhood hydrant-density dataset was created in a previous exercise and is included in this repository as GeoJSON.
+
+The dataset contains attributes including:
+
+```
+ntaname: neighborhood name
+boroname: borough
+hydrant_count: number of hydrants
+area_km2: neighborhood area
+hydrants_per_km2: hydrant density
+```
+
+**Circle Visualization**
+
+To create the circle visualization, the neighborhood polygons were converted to representative points using GDAL/OGR.
+
+ST_PointOnSurface() was used so that each point remains within its corresponding neighborhood polygon:
+
 ```
 ogr2ogr \
   -dialect sqlite \
@@ -19,93 +72,30 @@ ogr2ogr \
   neighborhood_density.geojson
 ```
 
-2 and 3. Convert to a single PMTiles file, with distinct layers
+The resulting point dataset contains one point per neighborhood polygon while retaining the density attributes used to size the circles.
+
+**PMTiles**
+
+The polygon and point datasets are stored as separate vector-tile layers within a single PMTiles archive:
+
 ```
 tippecanoe \
--o neighborhood_density.pmtiles \
---force \
---no-feature-limit  \
---no-tile-size-limit
--z 12 \
--Z 6 \
--L hydrant_density_polygons:neighborhood_density.geojson \
--L hydrant_density_points:neighborhood_density_points.geojson
+  -o neighborhood_density.pmtiles \
+  --force \
+  --no-feature-limit \
+  --no-tile-size-limit \
+  -z 12 \
+  -Z 6 \
+  -L hydrant_density_polygons:neighborhood_density.geojson \
+  -L hydrant_density_points:neighborhood_density_points.geojson
 ```
 
-A clean, commented `index.html` you can fork to start any web map. Used as the launchpad for Portfolio Project 3 (Live Web Map) in the Modern GIS Accelerator.
+This allows MapLibre to use a single PMTiles source while rendering the polygon and point layers independently.
 
-## What you get
+### Visualization
 
-- **`index.html`.** A complete working web map. Choropleth fill, click popups, legend, mobile-responsive layout. Heavily commented so you can read top-to-bottom and learn the pattern.
-- **`examples/`.** Four standalone style patterns you can copy-paste from when you need a different layer type:
-  - `choropleth.html`. Graduated color polygons (the default for thematic maps).
-  - `categorical.html`. Discrete category fills (boroughs, land use, types).
-  - `circles.html`. Proportional circles with both zoom and attribute scaling.
-  - `lines.html`. Styled line layer with category color and zoom-responsive width.
-- **No build step.** All dependencies load from CDN. Open `index.html` in a browser and it works.
+The map is built with MapLibre GL JS, using the PMTiles protocol to load vector tiles directly in the browser.
 
-## How to use it
+The polygon layer uses a fill visualization, while the point layer uses a circle visualization. Circle radius is driven by the hydrants_per_km2 attribute, allowing the map to communicate density through both geographic area and proportional symbol size.
 
-1. **Fork or clone** this folder into a new repo named `your-project-name`.
-2. **Generate your PMTiles file** with `tippecanoe` (see R3.3 for the flag reference).
-3. **Replace `HYDRANT_DATA_URL`** in `index.html` with the URL where you'll host your `.pmtiles` file (typically a GitHub Pages URL).
-4. **Update the layer's `source-layer` name** to match the layer name in your PMTiles (set by tippecanoe with `-l`).
-5. **Edit the legend HTML** and the paint expression breaks to match your data range.
-6. **Push to GitHub, enable Pages**, and your map is live (see R3.4 for the deployment checklist).
-
-## How to test locally
-
-You can open `index.html` directly in a browser, but PMTiles loaded from a remote URL needs to be served, not opened from `file://`. Run a tiny local server first:
-
-```bash
-# Python (built in)
-python3 -m http.server 8000
-
-# Or Node
-npx http-server -p 8000
-```
-
-Then visit `http://localhost:8000` in your browser.
-
-## What's in the bare `index.html`
-
-Read top to bottom. Sections are commented:
-
-1. **Head.** CDN imports for MapLibre and the PMTiles protocol handler. Inline CSS for the map container, legend, and mobile breakpoints.
-2. **Body.** Title bar, legend card, and the `#map` div MapLibre renders into.
-3. **Script step 1.** Register the PMTiles protocol with MapLibre.
-4. **Script step 2.** Initialize the map. Default center is NYC. Replace with your area.
-5. **Script step 3.** Add the data source and the styled layer when the basemap finishes loading.
-6. **Script step 4.** Hover and click interactions for the popup.
-
-## The mental model
-
-Three concepts hold the whole library together:
-
-- **Source.** Where the data lives. For PMTiles, it's the URL prefixed with `pmtiles://`.
-- **Layer.** How a chunk of the source data is drawn. One source can feed many layers. Layer types: `fill`, `line`, `circle`, `symbol`, `raster`.
-- **Style (paint).** The visual properties of a layer. Expressed as expressions like `["step", ["get", "column"], color, break, color, ...]`.
-
-If you internalize source → layer → style, the rest of MapLibre is mostly looking up the right paint expression.
-
-## Common gotchas
-
-**Map is blank.** Open browser dev tools (F12). Console errors usually tell you exactly what's wrong. Most common: a missing comma in the style expression.
-
-**PMTiles URL doesn't load.** Check three things: (1) the URL is reachable in a browser by itself, (2) the host serves it with proper CORS headers (GitHub Pages does by default), (3) you've prefixed it with `pmtiles://`.
-
-**`source-layer` not found.** The layer name inside the PMTiles file is set by `tippecanoe -l <name>`. Default is the input filename. Open the PMTiles file with `pmtiles show <file>` to confirm.
-
-**Popup shows `undefined`.** The property name in your code doesn't match what's in the tile. Use `console.log(e.features[0].properties)` inside the click handler to see what's actually there.
-
-## What this is preparing you for
-
-This template is the launchpad for PP3. After you finish PP3, the same `index.html` pattern carries forward to:
-
-- The capstone project in Part 4 (Overture-scale data via DuckDB → PMTiles → MapLibre).
-- Any future client work where you need a public-facing web map.
-- Most modern web mapping job interviews. The "explain how MapLibre works" question becomes a 60-second answer once you've published this once.
-
-## License
-
-MIT. Fork freely.
+Using PMTiles keeps the map architecture simple: the data is packaged into a single static tile archive that can be served alongside the web application without requiring a traditional tile server.
