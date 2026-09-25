@@ -98,7 +98,8 @@
       left: 20px;
       background: white;
       padding: 10px;
-      border-radius: 4px;
+      margin: 4px;
+      border-radius: 8px;
       box-shadow: 0 1px 4px rgba(0,0,0,.2);
     }
 
@@ -122,6 +123,16 @@
       font-weight: 600;
       z-index: 1;
     }
+    .title-bar h4 {
+      margin: 0 0 0 0;
+    }
+    .title-bar p{
+      margin: 4px 0 0 0;
+      max-width: 200px;
+      font-size: 12px;
+      font-weight: normal;
+      line-height: 1.4;
+    }
 
     /* ---------- Mobile breakpoints ---------- */
     @media (max-width: 600px) {
@@ -132,8 +143,10 @@
   </style>
 </head>
 <body>
-  <div class="title-bar">NYC Hydrant Density</div>
-
+  <div class="title-bar">
+    <h4>NYC Hydrant Density</h4>
+    <p>Interactive map using PMTiles to display hydrant densities per neighborhood, exhibiting usage of MapLibreGL JS for layer sourcing and styling.</p>
+  </div>
   <div id="legend" class="legend">
     <h4>Hydrants per km²</h4>
     <div class="row"><span class="swatch" style="background:#fde725"></span> &lt; 50</div>
