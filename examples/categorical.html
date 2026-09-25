@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Example: Categorical Fill</title>
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.5.2/dist/maplibre-gl.css" />
+  <script src="https://unpkg.com/maplibre-gl@4.5.2/dist/maplibre-gl.js"></script>
+  <script src="https://unpkg.com/pmtiles@3.2.0/dist/pmtiles.js"></script>
+  <style>
+    html, body { margin: 0; padding: 0; height: 100%; }
+    #map { position: absolute; top: 0; bottom: 0; width: 100%; }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <script>
+    // EXAMPLE: Categorical fill using a "match" expression.
+    // Best for: discrete categories like borough, land use class, type.
+    // Pattern: ["match", ["get", "column"], "value1", color1, "value2", color2, ..., default_color]
+
+    const protocol = new pmtiles.Protocol();
+    maplibregl.addProtocol("pmtiles", protocol.tile);
+
+    const map = new maplibregl.Map({
+      container: "map",
+      style: "https://tiles.openfreemap.org/styles/positron",
+      center: [-73.98, 40.75],
+      zoom: 10,
+    });
+
+    map.on("load", () => {
+      map.addSource("data", {
+        type: "vector",
+        url: "pmtiles://https://your-host.example.com/neighborhoods.pmtiles",
+      });
+
+      map.addLayer({
+        id: "categorical",
+        type: "fill",
+        source: "data",
+        "source-layer": "neighborhoods",
+        paint: {
+          "fill-color": [
+            "match",
+            ["get", "borough"],
+            "Manhattan",     "#f97316",
+            "Brooklyn",      "#14b8a6",
+            "Queens",        "#8b5cf6",
+            "Bronx",         "#22c55e",
+            "Staten Island", "#0d9488",
+            /* default */    "#cccccc"
+          ],
+          "fill-opacity": 0.6,
+          "fill-outline-color": "#ffffff"
+        }
+      });
+    });
+  </script>
+</body>
+</html>

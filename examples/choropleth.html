@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Example: Graduated Choropleth</title>
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.5.2/dist/maplibre-gl.css" />
+  <script src="https://unpkg.com/maplibre-gl@4.5.2/dist/maplibre-gl.js"></script>
+  <script src="https://unpkg.com/pmtiles@3.2.0/dist/pmtiles.js"></script>
+  <style>
+    html, body { margin: 0; padding: 0; height: 100%; }
+    #map { position: absolute; top: 0; bottom: 0; width: 100%; }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <script>
+    // EXAMPLE: Graduated color choropleth using a "step" expression.
+    // Best for: continuous numeric data with clear breakpoints.
+    // Pattern: ["step", ["get", "column"], color0, break1, color1, break2, color2, ...]
+
+    const protocol = new pmtiles.Protocol();
+    maplibregl.addProtocol("pmtiles", protocol.tile);
+
+    const map = new maplibregl.Map({
+      container: "map",
+      style: "https://tiles.openfreemap.org/styles/positron",
+      center: [-73.98, 40.75],
+      zoom: 10,
+    });
+
+    map.on("load", () => {
+      map.addSource("data", {
+        type: "vector",
+        url: "pmtiles://https://your-host.example.com/your_data.pmtiles",
+      });
+
+      map.addLayer({
+        id: "choropleth",
+        type: "fill",
+        source: "data",
+        "source-layer": "your_layer_name",
+        paint: {
+          // 5-class viridis sequential. Adjust breaks to your data range.
+          "fill-color": [
+            "step",
+            ["get", "value"],
+            "#fde725",
+            50,  "#90d743",
+            150, "#35b779",
+            300, "#21918c",
+            500, "#3b528b"
+          ],
+          "fill-opacity": 0.75,
+          "fill-outline-color": "#ffffff"
+        }
+      });
+    });
+  </script>
+</body>
+</html>

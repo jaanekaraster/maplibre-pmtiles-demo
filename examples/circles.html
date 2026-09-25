@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Example: Proportional Circles</title>
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.5.2/dist/maplibre-gl.css" />
+  <script src="https://unpkg.com/maplibre-gl@4.5.2/dist/maplibre-gl.js"></script>
+  <script src="https://unpkg.com/pmtiles@3.2.0/dist/pmtiles.js"></script>
+  <style>
+    html, body { margin: 0; padding: 0; height: 100%; }
+    #map { position: absolute; top: 0; bottom: 0; width: 100%; }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <script>
+    // EXAMPLE: Circle layer with radius scaled by an attribute.
+    // Best for: point data where the magnitude matters (population, count, value).
+    // Pattern: nested "interpolate" expressions for both zoom and attribute.
+
+    const protocol = new pmtiles.Protocol();
+    maplibregl.addProtocol("pmtiles", protocol.tile);
+
+    const map = new maplibregl.Map({
+      container: "map",
+      style: "https://tiles.openfreemap.org/styles/positron",
+      center: [-73.98, 40.75],
+      zoom: 11,
+    });
+
+    map.on("load", () => {
+      map.addSource("data", {
+        type: "vector",
+        url: "pmtiles://https://your-host.example.com/points.pmtiles",
+      });
+
+      map.addLayer({
+        id: "circles",
+        type: "circle",
+        source: "data",
+        "source-layer": "points",
+        paint: {
+          // Radius scales by attribute (linear) and zoom (so it stays visible
+          // at low zooms and doesn't dominate at high zooms).
+          "circle-radius": [
+            "interpolate", ["linear"], ["zoom"],
+            10, [
+              "interpolate", ["linear"], ["get", "value"],
+              0, 2,
+              100, 6,
+              1000, 14
+            ],
+            16, [
+              "interpolate", ["linear"], ["get", "value"],
+              0, 4,
+              100, 12,
+              1000, 28
+            ]
+          ],
+          "circle-color": "#f97316",
+          "circle-opacity": 0.7,
+          "circle-stroke-color": "#ffffff",
+          "circle-stroke-width": 1
+        }
+      });
+    });
+  </script>
+</body>
+</html>

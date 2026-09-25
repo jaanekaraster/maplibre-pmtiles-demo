@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NYC Hydrant Density (Starter)</title>
+
+  <!-- ===========================================================
+       MapLibre GL JS (the renderer) and the PMTiles protocol
+       handler. Both load from CDN, no build step.
+       =========================================================== -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/maplibre-gl@4.5.2/dist/maplibre-gl.css"
+  />
+  <script src="https://unpkg.com/maplibre-gl@4.5.2/dist/maplibre-gl.js"></script>
+  <script src="https://unpkg.com/pmtiles@3.2.0/dist/pmtiles.js"></script>
+
+  <style>
+    /* ---------- Base layout ---------- */
+    html, body { margin: 0; padding: 0; height: 100%; font-family:
+      -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    #map { position: absolute; top: 0; bottom: 0; width: 100%; }
+
+    /* ---------- Legend (bottom-left card) ---------- */
+    .legend {
+      position: absolute;
+      bottom: 24px;
+      left: 24px;
+      background: rgba(255, 255, 255, 0.96);
+      padding: 12px 14px;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+      font-size: 13px;
+      line-height: 1.4;
+      z-index: 1;
+      max-width: 220px;
+    }
+    .legend h4 { margin: 0 0 6px 0; font-size: 13px; font-weight: 600; }
+    .legend .row { display: flex; align-items: center; gap: 8px; }
+    .legend .swatch {
+      width: 14px; height: 14px; display: inline-block; border-radius: 2px;
+    }
+    .legend .source { margin-top: 8px; font-size: 11px; color: #666; }
+
+    /* ---------- Title bar (top-left) ---------- */
+    .title-bar {
+      position: absolute;
+      top: 24px;
+      left: 24px;
+      background: rgba(255, 255, 255, 0.96);
+      padding: 10px 14px;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+      font-size: 14px;
+      font-weight: 600;
+      z-index: 1;
+    }
+
+    /* ---------- Mobile breakpoints ---------- */
+    @media (max-width: 600px) {
+      .legend, .title-bar { left: 12px; right: 12px; max-width: none; }
+      .legend { bottom: 12px; }
+      .title-bar { top: 12px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="title-bar">NYC Hydrant Density</div>
+
+  <div class="legend">
+    <h4>Hydrants per km²</h4>
+    <div class="row"><span class="swatch" style="background:#fde725"></span> &lt; 50</div>
+    <div class="row"><span class="swatch" style="background:#90d743"></span> 50–150</div>
+    <div class="row"><span class="swatch" style="background:#35b779"></span> 150–300</div>
+    <div class="row"><span class="swatch" style="background:#21918c"></span> 300–500</div>
+    <div class="row"><span class="swatch" style="background:#3b528b"></span> 500+</div>
+    <div class="source">Source: NYC Open Data</div>
+  </div>
+
+  <div id="map"></div>
+
+  <script>
+    // =============================================================
+    // STEP 1: Register the PMTiles protocol with MapLibre.
+    // Required so MapLibre knows how to fetch tiles from a single
+    // .pmtiles URL using HTTP range requests.
+    // =============================================================
+    const protocol = new pmtiles.Protocol();
+    maplibregl.addProtocol("pmtiles", protocol.tile);
+
+    // =============================================================
+    // STEP 2: Initialize the map.
+    // The style object below uses Protomaps' free vector basemap
+    // for context. Replace with your own basemap source if needed.
+    // =============================================================
+    const map = new maplibregl.Map({
+      container: "map",
+      style: "https://tiles.openfreemap.org/styles/positron",
+      center: [-73.98, 40.75],   // NYC, [longitude, latitude]
+      zoom: 10,
+      maxZoom: 17,
+      minZoom: 8,
+    });
+
+    map.addControl(new maplibregl.NavigationControl(), "top-right");
+
+    // =============================================================
+    // STEP 3: When the basemap finishes loading, add your data.
+    // Replace HYDRANT_DATA_URL with your own .pmtiles URL.
+    // =============================================================
+    const HYDRANT_DATA_URL = "https://jaanekaraster.github.io/maplibre-starter-template/hydrant_density.pmtiles";
+
+    map.on("load", () => {
+      // Add the PMTiles source. The "pmtiles://" prefix tells
+      // MapLibre to use the registered protocol.
+      map.addSource("hydrants", {
+        type: "vector",
+        url: "pmtiles://" + HYDRANT_DATA_URL,
+        attribution: "NYC Open Data",
+      });
+
+      // Add a styled fill layer on top.
+      // The "source-layer" must match the layer name inside the PMTiles
+      // (set by tippecanoe with -l). Default is the input filename.
+      map.addLayer({
+        id: "hydrant-density-fill",
+        type: "fill",
+        source: "hydrants",
+        "source-layer": "hydrant_density",
+        paint: {
+          // Graduated color choropleth using a step expression.
+          // Same breaks as the legend above.
+          "fill-color": [
+            "step",
+            ["get", "density_per_km2"],
+            "#fde725",
+            50,  "#90d743",
+            150, "#35b779",
+            300, "#21918c",
+            500, "#3b528b"
+          ],
+          "fill-opacity": 0.75,
+          "fill-outline-color": "#ffffff"
+        }
+      });
+
+      // Optional outline for clearer polygon boundaries.
+      map.addLayer({
+        id: "hydrant-density-outline",
+        type: "line",
+        source: "hydrants",
+        "source-layer": "hydrant_density",
+        paint: {
+          "line-color": "#ffffff",
+          "line-width": 0.5
+        }
+      });
+
+      // =============================================================
+      // STEP 4: Hover and click interactions.
+      // mouseenter / mouseleave change the cursor.
+      // click pops up a feature card.
+      // =============================================================
+      map.on("mouseenter", "hydrant-density-fill", () => {
+        map.getCanvas().style.cursor = "pointer";
+      });
+      map.on("mouseleave", "hydrant-density-fill", () => {
+        map.getCanvas().style.cursor = "";
+      });
+
+      map.on("click", "hydrant-density-fill", (e) => {
+        const f = e.features[0];
+        const p = f.properties;
+        const html = `
+          <div style="font-family: inherit; min-width: 200px;">
+            <div style="font-weight: 600; margin-bottom: 4px;">
+              ${p.neighborhood || "Unknown"}
+            </div>
+            <div style="font-size: 12px; color: #555;">
+              ${p.borough || ""}
+            </div>
+            <hr style="border: none; border-top: 1px solid #eee; margin: 8px 0;" />
+            <div><strong>${p.hydrant_count}</strong> hydrants</div>
+            <div><strong>${Number(p.density_per_km2).toFixed(1)}</strong> per km²</div>
+            <div style="font-size: 11px; color: #888; margin-top: 4px;">
+              area: ${Number(p.area_km2).toFixed(2)} km²
+            </div>
+          </div>
+        `;
+        new maplibregl.Popup({ closeButton: true, maxWidth: "260px" })
+          .setLngLat(e.lngLat)
+          .setHTML(html)
+          .addTo(map);
+      });
+    });
+  </script>
+</body>
+</html>

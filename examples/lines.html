@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Example: Styled Line Layer</title>
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.5.2/dist/maplibre-gl.css" />
+  <script src="https://unpkg.com/maplibre-gl@4.5.2/dist/maplibre-gl.js"></script>
+  <script src="https://unpkg.com/pmtiles@3.2.0/dist/pmtiles.js"></script>
+  <style>
+    html, body { margin: 0; padding: 0; height: 100%; }
+    #map { position: absolute; top: 0; bottom: 0; width: 100%; }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <script>
+    // EXAMPLE: Line layer with width that grows on zoom and color from a category.
+    // Best for: subway lines, roads, rivers, any LineString feature.
+
+    const protocol = new pmtiles.Protocol();
+    maplibregl.addProtocol("pmtiles", protocol.tile);
+
+    const map = new maplibregl.Map({
+      container: "map",
+      style: "https://tiles.openfreemap.org/styles/positron",
+      center: [-73.98, 40.75],
+      zoom: 11,
+    });
+
+    map.on("load", () => {
+      map.addSource("data", {
+        type: "vector",
+        url: "pmtiles://https://your-host.example.com/subway_lines.pmtiles",
+      });
+
+      map.addLayer({
+        id: "lines",
+        type: "line",
+        source: "data",
+        "source-layer": "subway_lines",
+        layout: {
+          "line-join": "round",
+          "line-cap": "round"
+        },
+        paint: {
+          // Color by route group.
+          "line-color": [
+            "match",
+            ["get", "route_group"],
+            "1-2-3", "#ee352e",
+            "4-5-6", "#00933c",
+            "7",     "#b933ad",
+            "A-C-E", "#0039a6",
+            "B-D-F-M", "#ff6319",
+            "N-Q-R-W", "#fccc0a",
+            "L",       "#a7a9ac",
+            "G",       "#6cbe45",
+            "J-Z",     "#996633",
+            /* default */ "#888888"
+          ],
+          // Line gets thicker as you zoom in.
+          "line-width": [
+            "interpolate", ["linear"], ["zoom"],
+            8,  0.5,
+            12, 2,
+            16, 5
+          ],
+          "line-opacity": 0.9
+        }
+      });
+    });
+  </script>
+</body>
+</html>
