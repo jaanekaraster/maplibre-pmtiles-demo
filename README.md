@@ -1,5 +1,37 @@
 # MapLibre + PMTiles Starter
 
+
+# Data Sources
+
+1. NYC Borough Boundaries: https://data.cityofnewyork.us/City-Government/Borough-Boundaries/gthc-hcne/data_preview, downloaded as GeoJSON and converted to PMTiles
+```
+tippecanoe -o neighborhoods.pmtiles --drop-densest-as-needed --coalesce-densest-as-needed -z 12 -Z 6 -l neighborhoods --force Borough_Boundaries_20260925.geojson 
+```
+
+2. Neighborhood Density (Hydrants per km2): From previous exercise, copied to this repo as GeoJSON and converted to PMTiles
+
+3. Neighborhood Density (Hydrants per km2) (Circle Visualization): Convert #2 to points which are centroids of each neighborhood polygon.
+```
+ogr2ogr \
+  -dialect sqlite \
+  -sql "SELECT ST_PointOnSurface(geometry) AS geometry, * FROM neighborhood_density" \
+  neighborhood_density_points.geojson \
+  neighborhood_density.geojson
+```
+
+2 and 3. Convert to a single PMTiles file, with distinct layers
+```
+tippecanoe \
+-o neighborhood_density.pmtiles \
+--force \
+--no-feature-limit  \
+--no-tile-size-limit
+-z 12 \
+-Z 6 \
+-L hydrant_density_polygons:neighborhood_density.geojson \
+-L hydrant_density_points:neighborhood_density_points.geojson
+```
+
 A clean, commented `index.html` you can fork to start any web map. Used as the launchpad for Portfolio Project 3 (Live Web Map) in the Modern GIS Accelerator.
 
 ## What you get

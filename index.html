@@ -43,6 +43,72 @@
     }
     .legend .source { margin-top: 8px; font-size: 11px; color: #666; }
 
+    .circle-legend {
+      display: flex;
+      align-items: flex-end;
+      gap: 18px;
+      margin-top: 8px;
+    }
+
+    .circle-legend-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+    }
+
+    .legend-circle {
+      display: block;
+      border-radius: 50%;
+      background: #f97316;
+      opacity: 0.7;
+      border: 1px solid #fff;
+    }
+
+    .size-small {
+      width: 10px;
+      height: 10px;
+    }
+
+    .size-medium {
+      width: 20px;
+      height: 20px;
+    }
+
+    .size-large {
+      width: 40px;
+      height: 40px;
+    }
+
+    .size-xlarge {
+      width: 56px;
+      height: 56px;
+    }
+
+    .legend-label {
+      margin-top: 6px;
+      font-size: 11px;
+      opacity: 0.8;
+    }
+
+    #layer-control {
+      position: absolute;
+      bottom: 200px;
+      left: 20px;
+      background: white;
+      padding: 10px;
+      border-radius: 4px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.2);
+    }
+
+    #layer-control label {
+      display: block;
+      margin: 5px 0;
+      cursor: pointer;
+    }
+
+
     /* ---------- Title bar (top-left) ---------- */
     .title-bar {
       position: absolute;
@@ -68,7 +134,7 @@
 <body>
   <div class="title-bar">NYC Hydrant Density</div>
 
-  <div class="legend">
+  <div id="legend" class="legend">
     <h4>Hydrants per km²</h4>
     <div class="row"><span class="swatch" style="background:#fde725"></span> &lt; 50</div>
     <div class="row"><span class="swatch" style="background:#90d743"></span> 50–150</div>
@@ -77,9 +143,40 @@
     <div class="row"><span class="swatch" style="background:#3b528b"></span> 500+</div>
     <div class="source">Source: NYC Open Data</div>
   </div>
+  <div id="legend2" class="legend"></div>
+  <div id="legend-circles" class="legend">
+    <h4>Hydrant density</h4>
+
+    <div class="circle-legend">
+      <div class="circle-legend-item">
+        <span class="legend-circle size-small"></span>
+        <span>50</span>
+      </div>
+
+      <div class="circle-legend-item">
+        <span class="legend-circle size-medium"></span>
+        <span>200</span>
+      </div>
+
+      <div class="circle-legend-item">
+        <span class="legend-circle size-large"></span>
+        <span>600</span>
+      </div>
+
+      <div class="circle-legend-item">
+        <span class="legend-circle size-xlarge"></span>
+        <span>1,000+</span>
+      </div>
+    </div>
+
+    <div class="legend-label">
+      hydrants / km²
+    </div>
+  </div>
+
 
   <div id="map"></div>
-
+  <div id="layer-control"></div>
   <script>
     // =============================================================
     // STEP 1: Register the PMTiles protocol with MapLibre.
@@ -105,6 +202,57 @@
 
     map.addControl(new maplibregl.NavigationControl(), "top-right");
 
+const layers = {
+  categorical: {
+    label: "Boroughs",
+    legend: "legend2"
+  },
+  "hydrant-density-fill": {
+    label: "Hydrant Density",
+    legend: "legend"
+  },
+  circles: {
+    label: "Hydrant Density (Circles)",
+    legend: "legend-circles"
+  }
+};
+
+const control = document.getElementById("layer-control");
+
+Object.entries(layers).forEach(([id, config]) => {
+  const label = document.createElement("label");
+
+  label.innerHTML = `
+    <input
+      type="radio"
+      name="map-layer"
+      value="${id}"
+      ${id === "hydrant-density-fill" ? "checked" : ""}
+    >
+    ${config.label}
+  `;
+
+  label.querySelector("input").addEventListener("change", () => {
+    Object.keys(layers).forEach(layerId => {
+      map.setLayoutProperty(
+        layerId,
+        "visibility",
+        layerId === id ? "visible" : "none"
+      );
+    });
+
+    Object.values(layers).forEach(({ legend }) => {
+      const el = document.getElementById(legend);
+      if (el) el.style.display = "none";
+    });
+
+    const selectedLegend = document.getElementById(config.legend);
+    if (selectedLegend) selectedLegend.style.display = "block";
+  });
+
+  control.appendChild(label);
+});
+
     // =============================================================
     // STEP 3: When the basemap finishes loading, add your data.
     // Replace HYDRANT_DATA_URL with your own .pmtiles URL.
@@ -120,6 +268,11 @@
         attribution: "NYC Open Data",
       });
 
+      map.addSource("data", {
+        type: "vector",
+        url: "pmtiles://" + "neighborhoods.pmtiles",
+      });
+
       // Add a styled fill layer on top.
       // The "source-layer" must match the layer name inside the PMTiles
       // (set by tippecanoe with -l). Default is the input filename.
@@ -127,7 +280,7 @@
         id: "hydrant-density-fill",
         type: "fill",
         source: "hydrants",
-        "source-layer": "hydrant_density",
+        "source-layer": "hydrant_density_polygons",
         paint: {
           // Graduated color choropleth using a step expression.
           // Same breaks as the legend above.
@@ -145,12 +298,90 @@
         }
       });
 
+      map.addLayer({
+        id: "circles",
+        type: "circle",
+        source: "hydrants",
+        "source-layer": "hydrant_density_points",
+
+        paint: {
+          "circle-radius": [
+            "interpolate",
+            ["linear"],
+            ["get", "hydrants_per_km2"],
+            0, 3,
+            50, 5,
+            100, 7,
+            200, 10,
+            400, 15,
+            600, 20,
+            1000, 28
+          ],
+
+          "circle-color": "#f97316",
+          "circle-opacity": 0.7,
+          "circle-stroke-color": "#ffffff",
+          "circle-stroke-width": 1
+        }
+      });
+
+
+      map.addLayer({
+        id: "categorical",
+        type: "fill",
+        source: "data",
+        "source-layer": "neighborhoods",
+        paint: {
+          "fill-color": [
+            "match",
+            ["get", "boroname"],
+            "Manhattan",     "#f97316",
+            "Brooklyn",      "#14b8a6",
+            "Queens",        "#8b5cf6",
+            "Bronx",         "#22c55e",
+            "Staten Island", "#0d9488",
+            /* default */    "#cccccc"
+          ],
+          "fill-opacity": 0.6,
+          "fill-outline-color": "#f8e000"
+        }
+      });
+
+      const fillColor = map.getPaintProperty("categorical", "fill-color");
+      const legend2 = document.getElementById("legend2");
+
+      legend2.innerHTML = `
+                <div class="title"><h4>Borough</h4></div>
+      `
+
+      for (let i = 2; i < fillColor.length - 2; i += 2) {
+        const name = fillColor[i];
+        const color = fillColor[i + 1];
+    
+        legend2.innerHTML += `
+          <div class="row">
+            <span class="swatch" style="background:${color}"></span>
+            ${name}
+          </div>
+        `;
+      }
+
+
+      map.setLayoutProperty("hydrant-density-fill", "visibility", "visible");
+      map.setLayoutProperty("hydrant-density-outline", "visibility", "visible");
+      map.setLayoutProperty("circles", "visibility", "none");
+      map.setLayoutProperty("categorical", "visibility", "none");
+
+      document.getElementById("legend").style.display = "block";
+      document.getElementById("legend2").style.display = "none";
+      document.getElementById("legend-circles").style.display = "none";
+
       // Optional outline for clearer polygon boundaries.
       map.addLayer({
         id: "hydrant-density-outline",
         type: "line",
         source: "hydrants",
-        "source-layer": "hydrant_density",
+        "source-layer": "hydrant_density_polygons",
         paint: {
           "line-color": "#ffffff",
           "line-width": 0.5
@@ -168,6 +399,21 @@
       map.on("mouseleave", "hydrant-density-fill", () => {
         map.getCanvas().style.cursor = "";
       });
+
+      map.on("click", (e) => {
+  const features = map.queryRenderedFeatures(e.point, {
+    layers: ["circles"]
+  });
+
+  console.log(
+    features.map(f => ({
+      ntaname: f.properties.ntaname,
+      density: f.properties.hydrants_per_km2,
+      type: typeof f.properties.hydrants_per_km2
+    }))
+  );
+});
+
 
       map.on("click", "hydrant-density-fill", (e) => {
         const f = e.features[0];
